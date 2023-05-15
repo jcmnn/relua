@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "luaconf.h": "c"
+    },
+    "rust-analyzer.check.command": "clippy"
+}

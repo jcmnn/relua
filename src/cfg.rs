@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::VecDeque,
     fmt::Debug,
 };
 
@@ -11,6 +11,7 @@ use crate::{
 /// Control flow block
 #[derive(Debug)]
 pub struct Block {
+    pub id: BlockId,
     /// First instruction in the block
     pub first: InstructionIdx,
     /// Last instruction in the block
@@ -28,6 +29,9 @@ impl Block {
         }
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct BlockId(NodeId);
 
 /// Iterator over all instructions in a block
 pub struct BlockIter<'a> {
@@ -320,7 +324,14 @@ impl<'a> CfgBuilder<'a> {
             intersect = next_intersect;
         };
 
-        assert_eq!(self.graph.new_node(Block { first, last: index }), node_id);
+        assert_eq!(
+            self.graph.new_node(Block {
+                id: BlockId(node_id),
+                first,
+                last: index
+            }),
+            node_id
+        );
 
         Ok(MakeBlockResult {
             node_id,

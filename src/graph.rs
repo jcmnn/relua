@@ -9,7 +9,7 @@ pub struct Graph<T: Debug> {
     nodes: Vec<Node<T>>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NodeId(usize);
 
 impl Display for NodeId {
@@ -82,6 +82,12 @@ impl<T: Debug> Graph<T> {
 
         self.nodes[from.0].links_to.push(to);
         self.nodes[to.0].links_from.push(from);
+    }
+}
+
+impl<T: Debug> Default for Graph<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

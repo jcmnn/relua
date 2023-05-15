@@ -31,7 +31,7 @@ fn parse_string() -> BinResult<String> {
 
     // Read string content
     let mut content = vec![0u8; size as usize];
-    let pos = reader.seek(SeekFrom::Current(0))?;
+    let pos = reader.stream_position()?;
     reader.read_exact(&mut content)?;
 
     // Remove trailing whitespace
@@ -55,9 +55,9 @@ fn write_string(s: &String) -> BinResult<()> {
     writer.write_type(&len, endian)?;
 
     // Write string content
-    writer.write(s.as_bytes())?;
+    writer.write_all(s.as_bytes())?;
     // Write null terminator
-    writer.write(&[0])?;
+    writer.write_all(&[0])?;
 
     Ok(())
 }
@@ -195,9 +195,9 @@ impl OpcodeMap for Lua51OpcodeMap {
     }
 }
 
-impl Into<Constant> for Lua51Constant {
-    fn into(self) -> Constant {
-        match self {
+impl From<Lua51Constant> for Constant {
+    fn from(val: Lua51Constant) -> Self {
+        match val {
             Lua51Constant::Nil => Constant::Nil,
             Lua51Constant::Boolean(b) => Constant::Boolean(b),
             Lua51Constant::Number(n) => Constant::Number(n),
@@ -206,46 +206,46 @@ impl Into<Constant> for Lua51Constant {
     }
 }
 
-impl Into<LocalVar> for Lua51LocalVar {
-    fn into(self) -> LocalVar {
+impl From<Lua51LocalVar> for LocalVar {
+    fn from(val: Lua51LocalVar) -> Self {
         LocalVar {
-            name: self.name,
-            start_pc: self.start_pc,
-            end_pc: self.end_pc,
+            name: val.name,
+            start_pc: val.start_pc,
+            end_pc: val.end_pc,
         }
     }
 }
 
-impl Into<UpValue> for Lua51UpValue {
-    fn into(self) -> UpValue {
-        UpValue(self.0)
+impl From<Lua51UpValue> for UpValue {
+    fn from(val: Lua51UpValue) -> Self {
+        UpValue(val.0)
     }
 }
 
-impl Into<DebugInfo> for Lua51Debug {
-    fn into(self) -> DebugInfo {
+impl From<Lua51Debug> for DebugInfo {
+    fn from(val: Lua51Debug) -> Self {
         DebugInfo {
-            line_info: self.line_info,
-            loc_vars: self.loc_vars.into_iter().map(|l| l.into()).collect(),
-            upvalues: self.upvalues.into_iter().map(|u| u.into()).collect(),
+            line_info: val.line_info,
+            loc_vars: val.loc_vars.into_iter().map(|l| l.into()).collect(),
+            upvalues: val.upvalues.into_iter().map(|u| u.into()).collect(),
         }
     }
 }
 
-impl Into<Function> for Lua51Function {
-    fn into(self) -> Function {
+impl From<Lua51Function> for Function {
+    fn from(val: Lua51Function) -> Self {
         Function {
-            source: self.source,
-            line_defined: self.line_defined,
-            last_line_defined: self.last_line_defined,
-            nups: self.nups,
-            num_params: self.num_params,
-            is_vararg: self.is_vararg,
-            max_stack_size: self.max_stack_size,
-            code: Code::new(self.code, Lua51OpcodeMap),
-            constants: self.constants.into_iter().map(|c| c.into()).collect(),
-            protos: self.protos.into_iter().map(|p| p.into()).collect(),
-            debug: self.debug.into(),
+            source: val.source,
+            line_defined: val.line_defined,
+            last_line_defined: val.last_line_defined,
+            nups: val.nups,
+            num_params: val.num_params,
+            is_vararg: val.is_vararg,
+            max_stack_size: val.max_stack_size,
+            code: Code::new(val.code, Lua51OpcodeMap),
+            constants: val.constants.into_iter().map(|c| c.into()).collect(),
+            protos: val.protos.into_iter().map(|p| p.into()).collect(),
+            debug: val.debug.into(),
         }
     }
 }

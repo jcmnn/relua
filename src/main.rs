@@ -1,3 +1,5 @@
+pub mod stmt;
+
 use std::fmt::Write;
 use std::fs::File;
 

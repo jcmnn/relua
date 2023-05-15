@@ -208,7 +208,7 @@ impl Display for ConstIdx {
 }
 
 /// Register index
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RegIdx(pub usize);
 
 impl Display for RegIdx {
@@ -576,6 +576,12 @@ impl Registers {
     /// Creates a list from three registers
     pub fn from_triple(a: RegIdx, b: RegIdx, c: RegIdx) -> Registers {
         Registers::Triple(a, b, c)
+    }
+}
+
+impl Default for Registers {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1101,6 +1107,11 @@ impl Code {
     /// Returns the instructions length
     pub fn len(&self) -> usize {
         self.instructions.len()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.instructions.is_empty()
     }
 
     /// Returns an iterator over raw instructions
