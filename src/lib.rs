@@ -208,7 +208,7 @@ impl Display for ConstIdx {
 }
 
 /// Register index
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct RegIdx(pub usize);
 
 impl Display for RegIdx {
@@ -293,9 +293,9 @@ impl Display for RegConst {
 pub struct CallArgs {
     /// Register where the function is stored. Also used to store the first
     /// return value in the case of [Instruction::Call]. The first argument is at dst + 1
-    dst: RegIdx,
+    pub dst: RegIdx,
     /// If `arg_count` is [None], all registers up to 'top' are passed
-    arg_count: Option<usize>,
+    pub arg_count: Option<usize>,
 }
 
 impl Display for CallArgs {
@@ -345,7 +345,7 @@ pub enum Instruction {
     },
     GetGlobal {
         dst: RegIdx,
-        src: ConstIdx,
+        key: ConstIdx,
     },
     GetTable {
         dst: RegIdx,
@@ -480,8 +480,8 @@ pub enum Instruction {
         offset: isize,
     },
     ForPrep {
-        /// The limit is idx + 1, step is idx + 2
-        idx: RegIdx,
+        /// The limit is init + 1, step is init + 2
+        init: RegIdx,
         /// Jump offset to ForLoop instruction
         offset: isize,
     },
@@ -615,7 +615,7 @@ impl Instruction {
             },
             OpCode::GetGlobal => Instruction::GetGlobal {
                 dst: raw.reg_a(),
-                src: raw.const_bx(),
+                key: raw.const_bx(),
             },
             OpCode::GetTable => Instruction::GetTable {
                 dst: raw.reg_a(),
@@ -746,7 +746,7 @@ impl Instruction {
                 offset: raw.arg_sbx() as isize,
             },
             OpCode::ForPrep => Instruction::ForPrep {
-                idx: raw.reg_a(),
+                init: raw.reg_a(),
                 offset: raw.arg_sbx() as isize,
             },
             OpCode::TForLoop => Instruction::TForLoop {
@@ -813,7 +813,7 @@ impl Instruction {
             } => Registers::new(),
             Instruction::LoadNil { dst_begin, dst_end } => Registers::new(),
             Instruction::GetUpVal { dst, src } => Registers::new(),
-            Instruction::GetGlobal { dst, src } => Registers::new(),
+            Instruction::GetGlobal { dst, key } => Registers::new(),
             Instruction::GetTable { dst, table, key } => match key {
                 RegConst::Reg(key) => Registers::from_pair(*table, *key),
                 RegConst::Const(_) => Registers::from(*table),
@@ -883,7 +883,7 @@ impl Instruction {
                 None => Registers::from_to_top(*src),
             },
             Instruction::ForLoop { idx, offset } => Registers::from_range(*idx, *idx + 2usize),
-            Instruction::ForPrep { idx, offset } => Registers::from_pair(*idx, *idx + 2usize),
+            Instruction::ForPrep { init: idx, offset } => Registers::from_pair(*idx, *idx + 2usize),
             // TODO: This instruction references RA + 3 AFTER the call
             Instruction::TForLoop { func, return_count } => {
                 Registers::from_range(*func, *func + 2usize)
@@ -918,7 +918,7 @@ impl Display for Instruction {
                 write!(f, "LOADNIL\t{} {}", dst_begin, dst_end)
             }
             Instruction::GetUpVal { dst, src } => write!(f, "GETUPVAL\t{} {}", dst, src),
-            Instruction::GetGlobal { dst, src } => write!(f, "GETGLOBAL\t{} {}", dst, src),
+            Instruction::GetGlobal { dst, key } => write!(f, "GETGLOBAL\t{} {}", dst, key),
             Instruction::GetTable { dst, table, key } => {
                 write!(f, "GETTABLE\t{} {} {}", dst, table, key)
             }
@@ -983,7 +983,7 @@ impl Display for Instruction {
                 arg_count.map_or(-1, |ac| ac as isize)
             ),
             Instruction::ForLoop { idx, offset } => todo!(),
-            Instruction::ForPrep { idx, offset } => todo!(),
+            Instruction::ForPrep { init: idx, offset } => todo!(),
             Instruction::TForLoop { func, return_count } => todo!(),
             Instruction::SetList {
                 table,

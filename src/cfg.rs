@@ -1,7 +1,4 @@
-use std::{
-    collections::VecDeque,
-    fmt::Debug,
-};
+use std::{collections::VecDeque, fmt::Debug};
 
 use crate::{
     graph::{Graph, NodeId},
@@ -240,6 +237,11 @@ impl ControlFlowGraph {
     /// Builds a [ControlFlowGraph] from `code`
     pub fn build(code: &Code) -> Result<ControlFlowGraph, Error> {
         CfgBuilder::build(code)
+    }
+
+    /// Returns an iterator over the blocks
+    pub fn iter(&self) -> impl Iterator<Item = &Block> {
+        self.graph.iter().map(|node| node.get())
     }
 }
 

@@ -11,6 +11,9 @@ use graphviz_rust::printer::DotPrinter;
 use graphviz_rust::printer::PrinterContext;
 use relua::{cfg::ControlFlowGraph, parse};
 
+use crate::stmt::StatementBuilder;
+use crate::stmt::Variables;
+
 fn main() {
     let mut file = File::open("lua-5.1.5/test.luac").unwrap();
     // [27, 76, 117, 97, 81]
@@ -43,19 +46,15 @@ fn main() {
         }
     }
 
-    let mut g2 = graph!(strict di id!("t");
-      node!("aa";attr!("color","green")),
-      subgraph!("v";
-        node!("aa"; attr!("shape","square")),
-        subgraph!("vv"; edge!(node_id!("a2") => node_id!("b2"))),
-        node!("aaa";attr!("color","red")),
-        edge!(node_id!("aaa") => node_id!("bbb"))
-        ),
-      edge!(node_id!("aa") => node_id!("be") => subgraph!("v"; edge!(node_id!("d") => node_id!("aaa")))),
-      edge!(node_id!("aa") => node_id!("aaa") => node_id!("v"))
-    );
+    let mut variables = Variables::new();
 
-    println!("{}", g.print(&mut PrinterContext::default()));
+    for block in cfg.iter() {
+        println!("{:?}", block.id);
+        let sb = StatementBuilder::build(block, &func.code, &mut variables).unwrap();
+        println!("{:#?}", sb.statements);
+    }
+
+    //println!("{}", g.print(&mut PrinterContext::default()));
 
     graphviz_rust::exec(
         g,
