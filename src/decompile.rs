@@ -148,11 +148,12 @@ pub struct Decompiler<'a> {
     controls: HashMap<NodeId, Control>,
 }
 
+#[derive(Debug)]
 pub enum ControlNode {
     If {
         node: NodeId,
-        left: NodeId,
-        right: NodeId,
+        first: NodeId,
+        else_end: NodeId,
     },
     And {
         node: NodeId,
@@ -184,9 +185,48 @@ impl<'a> ControlBuilder<'a> {
         }
     }
 
-    fn begin_if(&mut self) {}
+    fn begin_if(&mut self, node_id: NodeId, left: NodeId, right: NodeId) {
+        // Check idioms of branches
+        let left_idiom = self.dominator_tree.idiom(left).unwrap();
+        let right_idiom = self.dominator_tree.idiom(right).unwrap();
+
+        assert!(left_idiom == node_id || right_idiom == node_id);
+
+        if left_idiom != right_idiom {
+            // This might be an 'and' statement
+            let (dup_branch, dom_branch, dup_idiom) = match (left_idiom, right_idiom) {
+                (li, ri) if li == node_id => (right, left, ri),
+                (li, ri) if ri == node_id => (left, right, li),
+                _ => panic!("Neither branch is dominated by node"),
+            };
+
+            // Verify previous branch?
+            let it = self.controls.iter().rev().enumerate().find(|(_, cont)| matches!(cont, ControlNode::If { node, first: _, else_end } if *node == dup_idiom && *else_end == node_id));
+            println!("Found {:?}", it);
+            let (idx, parent_node) = it.expect("Failed to find parent if statement");
+            assert_eq!(idx, 0);
+        } else {
+            // Add 'if' to control stack
+
+            // Check if either branch has multiple sources
+            if self.cfg.graph.get(left).unwrap().links_from().len() > 1 {
+                // We don't know how to handle the case where both have multiple sources
+                assert!(self.cfg.graph.get(right).unwrap().links_from().len() == 1);
+                self.controls.push(ControlNode::If {
+                    node: node_id,
+                    first: right,
+                    else_end: left,
+                });
+
+                // Process right first
+                self.process_next(right).unwrap();
+                // TODO: End or else?
+            }
+        }
+    }
 
     fn process_next(&mut self, node_id: NodeId) -> Result<(), Error> {
+        println!("Processing {:?}", node_id);
         let block = self.cfg.graph.get(node_id).unwrap().get();
 
         match Control::from_instruction(
@@ -197,9 +237,14 @@ impl<'a> ControlBuilder<'a> {
                 .ok_or(Error::InvalidBranch(block.last))?,
             self.cfg,
         )? {
-            Control::Pass(to_id) => {},
-            Control::If(cond) => todo!(),
-            Control::Return => {},
+            Control::Pass(to_id) => {}
+            Control::If(cond) => {
+                let cond = cond.borrow();
+                if let Conditional::Single { left, right } = *cond {
+                    self.begin_if(node_id, left, right);
+                }
+            }
+            Control::Return => {}
         };
 
         Ok(())
@@ -240,10 +285,10 @@ impl<'a> Decompiler<'a> {
                     let right_idiom = self.dominator_tree.idiom(right).unwrap();
                     // We only know how to handle cases where at least one idiom is the conditional
                     assert!(left_idiom == *node_id || right_idiom == *node_id);
-                    if left_idiom != right_idiom {
+                    /*if left_idiom != right_idiom {
                     } else {
                         // if-else statement
-                    }
+                    }*/
                 }
             }
         }
@@ -271,7 +316,10 @@ impl<'a> Decompiler<'a> {
 
     fn decompile(&mut self) -> Result<(), Error> {
         self.construct_initial_controls()?;
-        self.combine_conditionals()?;
+        // self.combine_conditionals()?;
+
+        let mut cb = ControlBuilder::new(self.cfg, self.code);
+        cb.process_next(NodeId::new(0)).unwrap();
 
         Ok(())
     }
@@ -289,7 +337,7 @@ pub fn decompile(cfg: &ControlFlowGraph, code: &Code) -> Result<(), Error> {
     // println!("{:#?}", dominator_tree);
 
     decompiler.decompile()?;
-    println!("{:#?}", decompiler.controls);
+    //println!("{:#?}", decompiler.controls);
 
     Ok(())
 }

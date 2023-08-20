@@ -244,6 +244,11 @@ impl ControlFlowGraph {
         self.graph.iter().map(|node| node.get())
     }
 
+    /// Returns the block associated with a [NodeId]
+    pub fn get(&self, id: NodeId) -> Option<&Block> {
+        self.graph.get(id).map(|n| n.get())
+    }
+
     /// Returns an iterator over all blocks in the graph in reverse postorder
     pub fn reverse_postorder_iter(&self) -> impl Iterator<Item = &Block> {
         self.graph.reverse_postorder_iter().map(|node| node.get())
