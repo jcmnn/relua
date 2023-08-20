@@ -243,6 +243,41 @@ impl ControlFlowGraph {
     pub fn iter(&self) -> impl Iterator<Item = &Block> {
         self.graph.iter().map(|node| node.get())
     }
+
+    /// Returns an iterator over all blocks in the graph in reverse postorder
+    pub fn reverse_postorder_iter(&self) -> impl Iterator<Item = &Block> {
+        self.graph.reverse_postorder_iter().map(|node| node.get())
+    }
+
+    /// Returns the root node id
+    pub fn root_id(&self) -> NodeId {
+        NodeId::new(0)
+    }
+
+    /// Returns the block containing an instruction
+    pub fn instruction_block(&self, instruction_id: InstructionIdx) -> Option<NodeId> {
+        self.block_map
+            .get(instruction_id.0)
+            .unwrap_or(&None)
+            .to_owned()
+    }
+
+    /// Returns [NodeId] of next node with a branch or multiple sources
+    pub fn next_junction(&self, id: NodeId) -> NodeId {
+        // TODO: Verify that we don't skip any nodes with actual instructions!
+        let mut node = self.graph.get(id).unwrap();
+        loop {
+            if node.links_from().len() != 1 || node.links_to().len() != 1 {
+                break;
+            }
+            if node.get().first != node.get().last {
+                // TODO: Check that this is just a JMP instruction
+                break;
+            }
+            node = self.graph.get(*node.links_to().first().unwrap()).unwrap();
+        }
+        node.id()
+    }
 }
 
 /// Control flow graph builder

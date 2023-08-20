@@ -1,4 +1,5 @@
 use std::{
+    collections::{HashSet, VecDeque},
     fmt::{Debug, Display},
     ops::{Index, IndexMut},
 };
@@ -18,6 +19,12 @@ impl Display for NodeId {
     }
 }
 
+impl NodeId {
+    pub(crate) fn new(n: usize) -> NodeId {
+        NodeId(n)
+    }
+}
+
 impl<T: Debug> Graph<T> {
     /// Creates a new empty [Graph]
     pub fn new() -> Graph<T> {
@@ -32,6 +39,11 @@ impl<T: Debug> Graph<T> {
     /// Returns an iterator over all [Node]s in the graph
     pub fn iter(&self) -> impl Iterator<Item = &Node<T>> {
         self.nodes.iter()
+    }
+
+    /// Returns an iterator over all [Node]s in the graph in reverse postorder
+    pub fn reverse_postorder_iter(&self) -> ReversePostorderIter<'_, T> {
+        ReversePostorderIter::new(self)
     }
 
     /// Creates a new detached node
@@ -83,6 +95,21 @@ impl<T: Debug> Graph<T> {
         self.nodes[from.0].links_to.push(to);
         self.nodes[to.0].links_from.push(from);
     }
+
+    /// Returns `true` if the graph contains no nodes
+    pub fn is_empty(&self) -> bool {
+        self.nodes.is_empty()
+    }
+
+    /// Returns the first node in the graph
+    pub fn first(&self) -> Option<&Node<T>> {
+        self.nodes.first()
+    }
+
+    /// Returns the number of [Node]s in the graph
+    pub fn len(&self) -> usize {
+        self.nodes.len()
+    }
 }
 
 impl<T: Debug> Default for Graph<T> {
@@ -102,6 +129,56 @@ impl<T: Debug> Index<NodeId> for Graph<T> {
 impl<T: Debug> IndexMut<NodeId> for Graph<T> {
     fn index_mut(&mut self, index: NodeId) -> &mut Self::Output {
         &mut self.nodes[index.0]
+    }
+}
+
+// Traverses a graph in reverse postorder
+pub struct ReversePostorderIter<'a, T: Debug> {
+    graph: &'a Graph<T>,
+    visited: HashSet<NodeId>,
+    stack: Vec<NodeId>,
+}
+
+impl<'a, T: Debug> ReversePostorderIter<'a, T> {
+    fn new(graph: &'a Graph<T>) -> ReversePostorderIter<'a, T> {
+        let mut iter = ReversePostorderIter {
+            graph,
+            visited: HashSet::new(),
+            stack: Vec::with_capacity(graph.len()),
+        };
+
+        if let Some(root) = graph.first() {
+            iter.add_node(root);
+        }
+
+        // TODO: visited parameter is no longer needed
+
+        iter
+    }
+
+    fn add_node(&mut self, current: &Node<T>) {
+        if !self.visited.insert(current.id()) {
+            // We already visited this node
+            return;
+        }
+
+        // Add children first
+        for &child_id in current.links_to() {
+            if let Some(child) = self.graph.get(child_id) {
+                self.add_node(child);
+            }
+        }
+
+        // Add node to stack
+        self.stack.push(current.id());
+    }
+}
+
+impl<'a, T: Debug> Iterator for ReversePostorderIter<'a, T> {
+    type Item = &'a Node<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.stack.pop().and_then(|id| self.graph.get(id))
     }
 }
 
@@ -128,6 +205,11 @@ impl<T: Debug> Node<T> {
     /// Returns all [NodeId]s that the node links to
     pub fn links_to(&self) -> &[NodeId] {
         &self.links_to
+    }
+
+    /// Returns all [NodeId]s that link to the node
+    pub fn links_from(&self) -> &[NodeId] {
+        &self.links_from
     }
 
     /// Returns a reference the associated data

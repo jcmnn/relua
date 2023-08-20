@@ -1,5 +1,3 @@
-pub mod stmt;
-
 use std::fmt::Write;
 use std::fs::File;
 
@@ -11,8 +9,8 @@ use graphviz_rust::printer::DotPrinter;
 use graphviz_rust::printer::PrinterContext;
 use relua::{cfg::ControlFlowGraph, parse};
 
-use crate::stmt::StatementBuilder;
-use crate::stmt::Variables;
+use relua::stmt::BlockStatements;
+use relua::stmt::Variables;
 
 fn main() {
     let mut file = File::open("lua-5.1.5/test.luac").unwrap();
@@ -38,7 +36,7 @@ fn main() {
             write!(buf, "{}  {}\\l", idx, instruction).unwrap();
         }
 
-        let label = format!("\"{}\"", buf.replace("\n", "\\n"));
+        let label = format!("\"{}\"", buf.replace('\n', "\\n"));
         g.add_stmt(node!(id; attr!("label", label), attr!("shape", "square")).into());
         for link in node.links_to() {
             let to_id = node_id!(format!("{}", link));
@@ -48,11 +46,12 @@ fn main() {
 
     let mut variables = Variables::new();
 
+    /*
     for block in cfg.iter() {
         println!("{:?}", block.id);
-        let sb = StatementBuilder::build(block, &func.code, &mut variables).unwrap();
+        let sb = BlockStatements::build(block, &func.code, &mut variables).unwrap();
         println!("{:#?}", sb.statements);
-    }
+    }*/
 
     //println!("{}", g.print(&mut PrinterContext::default()));
 
@@ -65,4 +64,6 @@ fn main() {
         ],
     )
     .unwrap();
+
+    relua::decompile::decompile(&cfg, &func.code).unwrap();
 }

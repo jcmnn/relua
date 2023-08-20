@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use relua::{
+use crate::{
     cfg::Block, CallArgs, Code, ConstIdx, Error, Instruction, ProtoIdx, RegConst, RegIdx, UpValIdx,
 };
 
 /// Variable stack
 #[derive(Debug)]
-struct VarStack {
+pub struct VarStack {
     map: HashMap<RegIdx, VarId>,
     /// First register from a 'top' instruction
     top_set: Option<RegIdx>,
@@ -14,7 +14,7 @@ struct VarStack {
 }
 
 impl VarStack {
-    pub fn new() -> VarStack {
+    fn new() -> VarStack {
         VarStack {
             map: HashMap::new(),
             top_set: None,
@@ -81,20 +81,18 @@ impl From<ConstIdx> for VarConst {
     }
 }
 
-/// Statement builder for contiguous instructions
 #[derive(Debug)]
-pub struct StatementBuilder<'a> {
+pub struct BlockStatements {
     pub statements: Vec<Statement>,
-    variables: &'a mut Variables,
-    stack: VarStack,
+    pub stack: VarStack,
 }
 
-impl StatementBuilder<'_> {
-    pub fn build<'a>(
-        block: &'a Block,
+impl BlockStatements {
+    pub fn build(
+        block: &Block,
         code: &Code,
-        variables: &'a mut Variables,
-    ) -> Result<StatementBuilder<'a>, Error> {
+        variables: &mut Variables,
+    ) -> Result<BlockStatements, Error> {
         let mut builder = StatementBuilder {
             statements: Vec::new(),
             variables,
@@ -105,9 +103,22 @@ impl StatementBuilder<'_> {
             builder.process(instruction?);
         }
 
-        Ok(builder)
+        Ok(BlockStatements {
+            statements: builder.statements,
+            stack: builder.stack,
+        })
     }
+}
 
+/// Statement builder for contiguous instructions
+#[derive(Debug)]
+struct StatementBuilder<'a> {
+    pub statements: Vec<Statement>,
+    variables: &'a mut Variables,
+    stack: VarStack,
+}
+
+impl StatementBuilder<'_> {
     /// Returns the variable id at a stack position. If no variable exists, creates a new one
     fn get_stack(&mut self, reg: RegIdx) -> VarId {
         self.stack.get(reg, self.variables)

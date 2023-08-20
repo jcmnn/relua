@@ -11,6 +11,9 @@ use crate::{cfg::ControlFlowGraph, lua51::Lua51OpcodeMap};
 pub mod cfg;
 pub mod graph;
 pub mod lua51;
+pub mod stmt;
+pub mod dominator;
+pub mod decompile;
 
 #[derive(Debug)]
 pub enum Error {
