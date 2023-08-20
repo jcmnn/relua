@@ -77,7 +77,6 @@ impl DominatorTree {
 
                 if doms.insert(node.id(), new_idiom) != Some(new_idiom) {
                     changed = true;
-                    println!("Changed {}", node.id());
                 }
             }
         }
@@ -92,5 +91,10 @@ impl DominatorTree {
                 .collect(),
         }*/
         DominatorTree { doms }
+    }
+
+    /// Returns the immediate dominator of `node_id`
+    pub fn immediate_dominator(&self, node_id: NodeId) -> Option<NodeId> {
+        self.doms.get(&node_id).copied()
     }
 }
