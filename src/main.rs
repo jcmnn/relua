@@ -7,6 +7,7 @@ use graphviz_rust::dot_generator::*;
 use graphviz_rust::dot_structures::*;
 use graphviz_rust::printer::DotPrinter;
 use graphviz_rust::printer::PrinterContext;
+use relua::dominator::DominatorTree;
 use relua::{cfg::ControlFlowGraph, parse};
 
 use relua::stmt::BlockStatements;
@@ -22,12 +23,18 @@ fn main() {
     let cfg = ControlFlowGraph::build(&func.code).unwrap();
     println!("{:#?}", cfg);
 
+    let dominator_tree = DominatorTree::from_cfg(&cfg);
+
     let mut g = graph!(strict di id!('a'));
     for node in cfg.graph.iter() {
         let id = format!("{}", node.id());
 
         // Generate label from instructions
-        let mut buf = format!("Block {}\\l", node.id());
+        let mut buf = format!(
+            "Block {} (idom: {})\\l",
+            node.id(),
+            dominator_tree.immediate_dominator(node.id()).unwrap()
+        );
         for (idx, instruction) in node
             .get()
             .iter(&func.code)
