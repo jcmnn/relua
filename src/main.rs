@@ -14,14 +14,14 @@ use relua::stmt::BlockStatements;
 use relua::stmt::Variables;
 
 fn main() {
-    let mut file = File::open("lua-5.1.5/test.luac").unwrap();
+    let mut file = File::open("tests/test.luac").unwrap();
     // [27, 76, 117, 97, 81]
     let func = parse(&mut file);
 
-    println!("{:#?}", func);
-    println!("{}", func.code);
+    //println!("{:#?}", func);
+    //println!("{}", func.code);
     let cfg = ControlFlowGraph::build(&func.code).unwrap();
-    println!("{:#?}", cfg);
+    //println!("{:#?}", cfg);
 
     let dominator_tree = DominatorTree::from_cfg(&cfg);
 
@@ -33,7 +33,7 @@ fn main() {
         let mut buf = format!(
             "Block {} (idom: {})\\l",
             node.id(),
-            dominator_tree.immediate_dominator(node.id()).unwrap()
+            dominator_tree.idiom(node.id()).unwrap()
         );
         for (idx, instruction) in node
             .get()

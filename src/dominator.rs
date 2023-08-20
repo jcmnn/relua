@@ -94,7 +94,17 @@ impl DominatorTree {
     }
 
     /// Returns the immediate dominator of `node_id`
-    pub fn immediate_dominator(&self, node_id: NodeId) -> Option<NodeId> {
+    pub fn idiom(&self, node_id: NodeId) -> Option<NodeId> {
         self.doms.get(&node_id).copied()
+    }
+
+    /// Returns true if `a` is dominates `b`
+    pub fn dominates(&self, a: NodeId, b: NodeId) -> bool {
+        let mut b = b;
+        while b != NodeId::new(0) && a != b {
+            b = self.doms[&b];
+        }
+
+        a == b
     }
 }

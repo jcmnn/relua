@@ -1,6 +1,11 @@
 use std::{cell::RefCell, collections::HashMap};
 
-use crate::{cfg::ControlFlowGraph, graph::NodeId, Code, Error, Instruction, InstructionIdx, dominator::{self, DominatorTree}};
+use crate::{
+    cfg::ControlFlowGraph,
+    dominator::{self, DominatorTree},
+    graph::NodeId,
+    Code, Error, Instruction, InstructionIdx,
+};
 
 #[derive(Debug)]
 enum AndOr {
@@ -139,7 +144,21 @@ impl Control {
 pub struct Decompiler<'a> {
     cfg: &'a ControlFlowGraph,
     code: &'a Code,
+    dominator_tree: DominatorTree,
     controls: HashMap<NodeId, Control>,
+}
+
+pub enum ControlNode {
+    If,
+    And,
+    Else,
+    End,
+}
+
+struct ControlBuilder {
+    controls: Vec<ControlNode>,
+    stack: Vec<Control>,
+    last_node: Vec<NodeId>,
 }
 
 impl<'a> Decompiler<'a> {
@@ -167,6 +186,26 @@ impl<'a> Decompiler<'a> {
     }
 
     fn combine_conditionals(&mut self) -> Result<(), Error> {
+        for (node_id, control) in &self.controls {
+            // Check if control is an IF
+            if let Control::If(conditional) = control {
+                let conditional = conditional.borrow();
+                if let Conditional::Single { left, right } = *conditional {
+                    let left_idiom = self.dominator_tree.idiom(left).unwrap();
+                    let right_idiom = self.dominator_tree.idiom(right).unwrap();
+                    // We only know how to handle cases where at least one idiomn is the conditional
+                    assert!(left_idiom == *node_id || right_idiom == *node_id);
+                    if left_idiom != right_idiom {
+
+                    } else {
+                        // if-else statement
+                    }
+                }
+            }
+        }
+
+        Ok(())
+        /*
         for control in self.controls.values() {
             if let Control::If(cond) = control {
                 let res = {
@@ -183,7 +222,7 @@ impl<'a> Decompiler<'a> {
                 }
             }
         }
-        Ok(())
+        Ok(())*/
     }
 
     fn decompile(&mut self) -> Result<(), Error> {
@@ -199,19 +238,14 @@ pub fn decompile(cfg: &ControlFlowGraph, code: &Code) -> Result<(), Error> {
         cfg,
         code,
         controls: HashMap::new(),
+        dominator_tree: DominatorTree::from_cfg(cfg),
     };
 
-    /*
-    for block in cfg.reverse_postorder_iter() {
-        println!("{:#?}", block.id);
-    }
-    */
+    // let dominator_tree = DominatorTree::from_cfg(cfg);
+    // println!("{:#?}", dominator_tree);
 
-    let dominator_tree = DominatorTree::from_cfg(cfg);
-    println!("{:#?}", dominator_tree);
-
-    //decompiler.decompile()?;
-    //println!("{:#?}", decompiler.controls);
+    decompiler.decompile()?;
+    println!("{:#?}", decompiler.controls);
 
     Ok(())
 }
