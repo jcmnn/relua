@@ -149,16 +149,61 @@ pub struct Decompiler<'a> {
 }
 
 pub enum ControlNode {
-    If,
-    And,
+    If {
+        node: NodeId,
+        left: NodeId,
+        right: NodeId,
+    },
+    And {
+        node: NodeId,
+        next: NodeId,
+        fail: NodeId,
+    },
     Else,
     End,
 }
 
-struct ControlBuilder {
+struct ControlBuilder<'a> {
     controls: Vec<ControlNode>,
     stack: Vec<Control>,
     last_node: Vec<NodeId>,
+    dominator_tree: DominatorTree,
+    cfg: &'a ControlFlowGraph,
+    code: &'a Code,
+}
+
+impl<'a> ControlBuilder<'a> {
+    fn new(cfg: &'a ControlFlowGraph, code: &'a Code) -> ControlBuilder<'a> {
+        ControlBuilder {
+            controls: Vec::new(),
+            stack: Vec::new(),
+            last_node: Vec::new(),
+            dominator_tree: DominatorTree::from_cfg(cfg),
+            cfg,
+            code,
+        }
+    }
+
+    fn begin_if(&mut self) {}
+
+    fn process_next(&mut self, node_id: NodeId) -> Result<(), Error> {
+        let block = self.cfg.graph.get(node_id).unwrap().get();
+
+        match Control::from_instruction(
+            block.last,
+            &self
+                .code
+                .decode(block.last)?
+                .ok_or(Error::InvalidBranch(block.last))?,
+            self.cfg,
+        )? {
+            Control::Pass(to_id) => {},
+            Control::If(cond) => todo!(),
+            Control::Return => {},
+        };
+
+        Ok(())
+    }
 }
 
 impl<'a> Decompiler<'a> {
@@ -193,10 +238,9 @@ impl<'a> Decompiler<'a> {
                 if let Conditional::Single { left, right } = *conditional {
                     let left_idiom = self.dominator_tree.idiom(left).unwrap();
                     let right_idiom = self.dominator_tree.idiom(right).unwrap();
-                    // We only know how to handle cases where at least one idiomn is the conditional
+                    // We only know how to handle cases where at least one idiom is the conditional
                     assert!(left_idiom == *node_id || right_idiom == *node_id);
                     if left_idiom != right_idiom {
-
                     } else {
                         // if-else statement
                     }
