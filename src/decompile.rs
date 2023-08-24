@@ -185,7 +185,7 @@ impl<'a> ControlBuilder<'a> {
         }
     }
 
-    fn begin_if(&mut self, node_id: NodeId, left: NodeId, right: NodeId) {
+    fn begin_if(&mut self, node_id: NodeId, left: NodeId, right: NodeId) -> NodeId {
         // Check idioms of branches
         let left_idiom = self.dominator_tree.idiom(left).unwrap();
         let right_idiom = self.dominator_tree.idiom(right).unwrap();
@@ -201,10 +201,19 @@ impl<'a> ControlBuilder<'a> {
             };
 
             // Verify previous branch?
-            let it = self.controls.iter().rev().enumerate().find(|(_, cont)| matches!(cont, ControlNode::If { node, first: _, else_end } if *node == dup_idiom && *else_end == node_id));
+            println!("{:?}, {:?}, {:?}", dup_branch, dom_branch, dup_idiom);
+            println!("{:#?}", self.controls);
+            let it = self.controls.iter().rev().enumerate().find(|(_, cont)| matches!(cont, ControlNode::If { node, first, else_end } if *node == dup_idiom && *else_end == dup_branch));
             println!("Found {:?}", it);
             let (idx, parent_node) = it.expect("Failed to find parent if statement");
             assert_eq!(idx, 0);
+            self.controls.push(ControlNode::And {
+                node: node_id,
+                next: dom_branch,
+                fail: dup_branch,
+            });
+
+            dom_branch
         } else {
             // Add 'if' to control stack
 
@@ -219,13 +228,23 @@ impl<'a> ControlBuilder<'a> {
                 });
 
                 // Process right first
-                self.process_next(right).unwrap();
+                //self.process_next(right).unwrap();
                 // TODO: End or else?
+                right
+            } else {
+                assert!(self.cfg.graph.get(left).unwrap().links_from().len() == 1);
+                self.controls.push(ControlNode::If {
+                    node: node_id,
+                    first: left,
+                    else_end: right,
+                });
+
+                left
             }
         }
     }
 
-    fn process_next(&mut self, node_id: NodeId) -> Result<(), Error> {
+    fn process_next(&mut self, node_id: NodeId) -> Result<Option<NodeId>, Error> {
         println!("Processing {:?}", node_id);
         let block = self.cfg.graph.get(node_id).unwrap().get();
 
@@ -237,17 +256,17 @@ impl<'a> ControlBuilder<'a> {
                 .ok_or(Error::InvalidBranch(block.last))?,
             self.cfg,
         )? {
-            Control::Pass(to_id) => {}
+            Control::Pass(to_id) => Ok(Some(to_id)),
             Control::If(cond) => {
                 let cond = cond.borrow();
                 if let Conditional::Single { left, right } = *cond {
-                    self.begin_if(node_id, left, right);
+                    Ok(Some(self.begin_if(node_id, left, right)))
+                } else {
+                    todo!();
                 }
             }
-            Control::Return => {}
-        };
-
-        Ok(())
+            Control::Return => Ok(None),
+        }
     }
 }
 
@@ -319,7 +338,10 @@ impl<'a> Decompiler<'a> {
         // self.combine_conditionals()?;
 
         let mut cb = ControlBuilder::new(self.cfg, self.code);
-        cb.process_next(NodeId::new(0)).unwrap();
+        let mut next_id = NodeId::new(0);
+        while let Some(n) = cb.process_next(next_id)? {
+            next_id = n;
+        }
 
         Ok(())
     }
